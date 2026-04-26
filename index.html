@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1a1a2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Chatons">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon.svg">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>Suivi chatons</title>
+<style>
+  :root{
+    --bg:#ffffff;--bg2:#f5f5f3;--text:#1a1a1a;--text2:#6b6b68;--text3:#aaa;
+    --border:rgba(0,0,0,0.1);--border2:rgba(0,0,0,0.2);
+    --focus-bg:#e8f1fb;--focus-color:#185fa5;--r:10px;
+    --gnbg:rgba(34,197,94,0.13);--gnbd:rgba(34,197,94,0.55);
+    --accent:#1a1a2e;
+  }
+  @media(prefers-color-scheme:dark){
+    :root{
+      --bg:#1a1a2e;--bg2:#242438;--text:#e8e8f0;--text2:#9090aa;--text3:#555;
+      --border:rgba(255,255,255,0.1);--border2:rgba(255,255,255,0.2);
+      --focus-bg:#1a2a3a;--focus-color:#85B7EB;
+      --gnbg:rgba(34,197,94,0.09);--gnbd:rgba(34,197,94,0.45);
+    }
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.6;min-height:100vh;}
+
+  /* ── LOGIN ── */
+  #login-screen{
+    display:flex;align-items:center;justify-content:center;min-height:100vh;
+    background:var(--accent);
+  }
+  .login-box{
+    background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);
+    border-radius:16px;padding:2.5rem 2rem;width:100%;max-width:340px;text-align:center;
+    backdrop-filter:blur(12px);
+  }
+  .login-box img{width:72px;height:72px;border-radius:16px;margin-bottom:1rem;}
+  .login-box h2{font-size:20px;font-weight:500;color:#fff;margin-bottom:.4rem;}
+  .login-box p{font-size:13px;color:rgba(255,255,255,0.5);margin-bottom:1.75rem;}
+  .login-box input{
+    width:100%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);
+    border-radius:var(--r);color:#fff;padding:10px 14px;font-size:14px;
+    font-family:inherit;outline:none;margin-bottom:.75rem;
+  }
+  .login-box input::placeholder{color:rgba(255,255,255,0.35);}
+  .login-box input:focus{border-color:rgba(255,255,255,0.4);background:rgba(255,255,255,0.12);}
+  .login-btn{
+    width:100%;background:#e05080;border:none;border-radius:var(--r);
+    color:#fff;padding:11px;font-size:15px;font-weight:500;cursor:pointer;
+    font-family:inherit;transition:opacity .2s;margin-top:.25rem;
+  }
+  .login-btn:hover{opacity:.85;}
+  .login-btn:disabled{opacity:.4;cursor:not-allowed;}
+  #login-err{color:#fca5a5;font-size:12px;margin-top:.75rem;min-height:18px;}
+
+  /* ── APP ── */
+  #app{display:none;padding:1.25rem 1.25rem env(safe-area-inset-bottom);max-width:1100px;margin:auto;}
+  h1{font-size:17px;font-weight:500;margin-bottom:1.25rem;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  h2.sec{font-size:11px;font-weight:500;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;margin-top:1.5rem;}
+
+  #status{font-size:12px;padding:3px 9px;border-radius:20px;border:1px solid transparent;transition:all .3s;}
+  #status.ok{background:var(--gnbg);border-color:var(--gnbd);color:#15803d;}
+  #status.saving{background:rgba(59,130,246,0.1);border-color:rgba(59,130,246,0.4);color:#1d4ed8;}
+  #status.err{background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.4);color:#b91c1c;}
+
+  .logout-btn{margin-left:auto;background:transparent;border:.5px solid var(--border2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2);cursor:pointer;font-family:inherit;}
+  .logout-btn:hover{background:var(--bg2);}
+
+  .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:1.25rem;}
+  .mc{background:var(--bg2);border-radius:var(--r);padding:.8rem 1rem;}
+  .mc p:first-child{font-size:11px;color:var(--text2);margin-bottom:3px;}
+  .mc p:last-child{font-size:18px;font-weight:500;}
+  .mc span{font-size:11px;color:var(--text2);font-weight:400;}
+
+  .tbl-wrap{overflow-x:auto;margin-bottom:.75rem;-webkit-overflow-scrolling:touch;}
+  table.data{border-collapse:collapse;font-size:13px;width:100%;}
+  table.data th{background:var(--bg2);color:var(--text2);font-weight:500;padding:5px 6px;text-align:center;border:.5px solid var(--border);white-space:nowrap;font-size:11px;}
+  table.data th.cat{text-align:left;min-width:80px;}
+  table.data td{border:.5px solid var(--border);padding:0;text-align:center;}
+  table.data td.cat-label{padding:5px 8px;font-weight:500;text-align:left;white-space:nowrap;font-size:13px;}
+  table.data td input{width:52px;border:none;background:transparent;color:var(--text);font-size:13px;text-align:center;padding:6px 2px;outline:none;font-family:inherit;}
+  table.data td input:focus{background:var(--focus-bg);color:var(--focus-color);}
+
+  .toolbar{display:flex;gap:8px;margin-bottom:1.25rem;flex-wrap:wrap;align-items:center;}
+  .btn{background:transparent;border:.5px solid var(--border2);border-radius:var(--r);padding:6px 13px;font-size:12px;color:var(--text2);cursor:pointer;font-family:inherit;transition:background .15s;}
+  .btn:hover{background:var(--bg2);}
+  .btn.active{background:var(--gnbg);border-color:var(--gnbd);color:var(--text);}
+  .del-btn{background:transparent;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:3px 6px;}
+  .del-btn:hover{color:#c0392b;}
+
+  .legend{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:8px;font-size:12px;color:var(--text2);}
+  .legend span{display:flex;align-items:center;gap:4px;}
+  .ll{width:20px;height:3px;border-radius:2px;display:inline-block;}
+
+  .chart-wrap{position:relative;width:100%;height:300px;margin-bottom:1.5rem;}
+  .chart-wrap-sm{position:relative;width:100%;height:190px;margin-bottom:1.5rem;}
+
+  details{margin-top:1rem;}
+  summary{cursor:pointer;font-size:12px;color:var(--text2);padding:6px 0;user-select:none;list-style:none;}
+  summary::-webkit-details-marker{display:none;}
+  summary::before{content:'▶  ';}
+  details[open] summary::before{content:'▼  ';}
+  table.norms{border-collapse:collapse;font-size:12px;width:100%;margin-top:8px;}
+  table.norms th{background:var(--bg2);color:var(--text2);font-weight:500;padding:4px 8px;text-align:center;border:.5px solid var(--border);}
+  table.norms td{border:.5px solid var(--border);padding:4px 8px;text-align:center;color:var(--text2);}
+  table.norms tr.reached{background:var(--gnbg);}
+  table.norms tr.future td{color:var(--text3);}
+  .badge{display:inline-block;font-size:10px;background:var(--gnbg);color:#16a34a;border:1px solid var(--gnbd);border-radius:4px;padding:1px 5px;margin-left:5px;vertical-align:middle;}
+  .note{font-size:11px;color:var(--text3);margin-top:6px;}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════
+     ⚙️  CONFIGURATION SUPABASE
+     ══════════════════════════════════ -->
+<script>
+  const SUPABASE_URL  = 'COLLE_TON_PROJECT_URL_ICI';
+  const SUPABASE_ANON = 'COLLE_TON_ANON_KEY_ICI';
+</script>
+<!-- ══════════════════════════════════ -->
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <img src="icons/icon-192.png" alt="Chatons">
+    <h2>Suivi chatons 🐱</h2>
+    <p>Connecte-toi pour accéder au suivi</p>
+    <input type="email" id="email" placeholder="Email" autocomplete="email">
+    <input type="password" id="password" placeholder="Mot de passe" autocomplete="current-password">
+    <button class="login-btn" id="login-btn" onclick="doLogin()">Se connecter</button>
+    <p id="login-err"></p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <h1>
+    🐾 Suivi poids chatons
+    <span id="status" class="ok">✓ synchronisé</span>
+    <button class="logout-btn" onclick="doLogout()">Déconnexion</button>
+  </h1>
+
+  <div class="metrics">
+    <div class="mc"><p>Poids max actuel</p><p id="m-max">—</p></div>
+    <div class="mc"><p>Gain total moyen</p><p id="m-gain">—</p></div>
+    <div class="mc"><p>Meilleure progression</p><p id="m-best">—</p></div>
+    <div class="mc"><p>Gain quotidien moy.</p><p id="m-daily">—</p></div>
+  </div>
+
+  <div class="tbl-wrap">
+    <table class="data" id="data-table">
+      <thead id="thead"></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn" onclick="addDay()">+ Jour</button>
+    <button class="btn active" id="btn-norm" onclick="toggleNorm()">◎ Norme</button>
+    <button class="btn" onclick="exportCSV()">⬇ CSV</button>
+  </div>
+
+  <div class="legend">
+    <span><span class="ll" style="background:#222;"></span>Neko</span>
+    <span><span class="ll" style="background:#378ADD;"></span>Bleu</span>
+    <span><span class="ll" style="background:#F4A7C3;border-top:2px dashed #F4A7C3;height:0;"></span>Rose C</span>
+    <span><span class="ll" style="border-top:2px dotted #7F77DD;height:0;"></span>Rose F</span>
+    <span id="leg-norm"><span style="display:inline-block;width:20px;height:8px;background:rgba(34,197,94,0.2);border:1.5px dashed rgba(34,197,94,0.55);border-radius:2px;"></span> Norme vét.</span>
+  </div>
+
+  <h2 class="sec">Courbes de poids</h2>
+  <div class="chart-wrap"><canvas id="chartW"></canvas></div>
+
+  <h2 class="sec">Gain journalier</h2>
+  <div class="chart-wrap-sm"><canvas id="chartG"></canvas></div>
+
+  <details>
+    <summary>Normes vétérinaires — naissance à 1 an</summary>
+    <table class="norms" id="norm-table"></table>
+    <p class="note">Source : AAFP 2021 / WALTHAM Petcare — chat domestique mixte</p>
+  </details>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+/* ══ SUPABASE INIT ══ */
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+/* ══ AUTH ══ */
+async function doLogin(){
+  const btn = document.getElementById('login-btn');
+  const err = document.getElementById('login-err');
+  btn.disabled = true; btn.textContent = '…'; err.textContent = '';
+  const { error } = await sb.auth.signInWithPassword({
+    email: document.getElementById('email').value.trim(),
+    password: document.getElementById('password').value,
+  });
+  if(error){ err.textContent = '❌ ' + error.message; btn.disabled=false; btn.textContent='Se connecter'; }
+  else showApp();
+}
+
+document.getElementById('password').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+document.getElementById('email').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('password').focus(); });
+
+async function doLogout(){
+  await sb.auth.signOut();
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+}
+
+function showApp(){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  loadData();
+}
+
+// Vérifie la session au chargement
+sb.auth.getSession().then(({data:{session}}) => { if(session) showApp(); });
+
+/* ══ DONNÉES ══ */
+const cats   = ['Neko','Bleu','Rose C','Rose F'];
+const colors = ['#222222','#378ADD','#F4A7C3','#7F77DD'];
+const dashes = [[],[],[6,3],[2,3]];
+let days = [], vals = {'Neko':[],'Bleu':[],'Rose C':[],'Rose F':[]};
+
+function setStatus(cls,msg){ const s=document.getElementById('status'); s.className=cls; s.textContent=msg; }
+
+async function loadData(){
+  setStatus('saving','⏳ chargement…');
+  const { data, error } = await sb.from('mesures').select('*').order('jour');
+  if(error){ setStatus('err','✗ erreur'); console.error(error); return; }
+  days = data.map(r => ({label:r.jour, date:r.date_label}));
+  cats.forEach(cat => vals[cat]=[]);
+  data.forEach(r => {
+    vals['Neko'].push(r.neko??''); vals['Bleu'].push(r.bleu??'');
+    vals['Rose C'].push(r.rose_c??''); vals['Rose F'].push(r.rose_f??'');
+  });
+  setStatus('ok','✓ synchronisé');
+  buildTable(); initCharts(); updateMetrics(); buildNormTable();
+}
+
+let saveTimer=null;
+function schedSave(idx){
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(()=>saveRow(idx), 700);
+}
+
+async function saveRow(idx){
+  if(!days[idx])return;
+  setStatus('saving','💾 sauvegarde…');
+  const {error}=await sb.from('mesures').upsert({
+    jour:days[idx].label, date_label:days[idx].date,
+    neko:vals['Neko'][idx]||null, bleu:vals['Bleu'][idx]||null,
+    rose_c:vals['Rose C'][idx]||null, rose_f:vals['Rose F'][idx]||null,
+  },{onConflict:'jour'});
+  if(error){setStatus('err','✗ erreur save');console.error(error);}
+  else setStatus('ok','✓ synchronisé');
+}
+
+async function addDay(){
+  const last=days[days.length-1];
+  const num=parseInt(last.label.replace('J',''));
+  const[dd,mm]=last.date.split('/').map(Number);
+  let nd=dd+1,nm=mm; if(nd>30){nd=1;nm++;}
+  const newDay={label:'J'+(num+1),date:(nd<10?'0'+nd:nd)+'/'+(nm<10?'0'+nm:nm)};
+  days.push(newDay); cats.forEach(cat=>{vals[cat].push('');});
+  setStatus('saving','💾 sauvegarde…');
+  const{error}=await sb.from('mesures').upsert({jour:newDay.label,date_label:newDay.date},{onConflict:'jour'});
+  if(error){setStatus('err','✗ erreur');}else setStatus('ok','✓ synchronisé');
+  buildTable(); updateAll();
+  setTimeout(()=>{const inp=document.querySelectorAll('input[type=number]');if(inp.length)inp[inp.length-cats.length].focus();},50);
+}
+
+async function removeDay(){
+  if(days.length<=2)return;
+  const last=days[days.length-1];
+  setStatus('saving','🗑 suppression…');
+  const{error}=await sb.from('mesures').delete().eq('jour',last.label);
+  if(error){setStatus('err','✗ erreur');}else setStatus('ok','✓ synchronisé');
+  days.pop(); cats.forEach(cat=>vals[cat].pop());
+  buildTable(); updateAll();
+}
+
+function exportCSV(){
+  let csv='Chaton,'+days.map(d=>d.label+' '+d.date).join(',')+'\n';
+  cats.forEach(cat=>{csv+=cat+','+vals[cat].slice(0,days.length).join(',')+'\n';});
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='suivi_chatons.csv'; a.click();
+}
+
+/* ══ NORMES ══ */
+const NP=[[0,71,128],[7,113,227],[14,170,340],[21,227,425],[28,312,499],[35,360,590],[42,408,680],[49,499,839],[56,590,998],[63,703,1179],[70,816,1361],[77,907,1542],[84,998,1724],[91,1089,1859],[98,1180,1995],[105,1271,2131],[112,1361,2268],[120,1361,2495],[150,1814,2948],[180,2268,3629],[210,2495,4083],[240,2722,4536],[270,2948,4990],[300,3175,5443],[330,3289,5443],[365,3402,5443]];
+const NT=[{l:'Naissance (J0)',d:0},{l:'Semaine 1 (J7)',d:7},{l:'Semaine 2 (J14)',d:14},{l:'Semaine 3 (J21)',d:21},{l:'Semaine 4 (J28)',d:28},{l:'Semaine 5 (J35)',d:35},{l:'Semaine 6 (J42)',d:42},{l:'Semaine 7 (J49)',d:49},{l:'Semaine 8 (J56)',d:56},{l:'Semaine 9 (J63)',d:63},{l:'Semaine 10 (J70)',d:70},{l:'Semaine 11 (J77)',d:77},{l:'Semaine 12 (J84)',d:84},{l:'Semaine 13 (J91)',d:91},{l:'Semaine 14 (J98)',d:98},{l:'Semaine 15 (J105)',d:105},{l:'Semaine 16 (J112)',d:112},{l:'4 mois (J120)',d:120},{l:'5 mois (J150)',d:150},{l:'6 mois (J180)',d:180},{l:'7 mois (J210)',d:210},{l:'8 mois (J240)',d:240},{l:'9 mois (J270)',d:270},{l:'10 mois (J300)',d:300},{l:'11 mois (J330)',d:330},{l:'12 mois (J365)',d:365}];
+
+function getNorm(day){
+  if(day<0)return null;
+  for(let i=0;i<NP.length-1;i++){
+    const[d0,n0,x0]=NP[i],[d1,n1,x1]=NP[i+1];
+    if(day>=d0&&day<=d1){const t=(day-d0)/(d1-d0);return[Math.round(n0+t*(n1-n0)),Math.round(x0+t*(x1-x0))];}
+  }
+  return day>=365?[NP[NP.length-1][1],NP[NP.length-1][2]]:null;
+}
+function dayNum(label){return parseInt(label.replace('J',''));}
+function maxDay(){return days.length?dayNum(days[days.length-1].label):0;}
+
+function buildNormTable(){
+  const md=maxDay(),t=document.getElementById('norm-table');
+  t.innerHTML='<tr><th style="text-align:left">Âge</th><th>Min</th><th>Max</th><th>Cible</th></tr>';
+  NT.forEach(row=>{
+    const n=getNorm(row.d),reached=row.d<=md,isCur=reached&&(row.d+7>md);
+    const tr=document.createElement('tr');tr.className=reached?'reached':'future';
+    tr.innerHTML=`<td style="text-align:left">${row.l}${isCur?'<span class="badge">✓ maintenant</span>':''}</td><td>${n?n[0]+'g':'—'}</td><td>${n?n[1]+'g':'—'}</td><td>${n?Math.round((n[0]+n[1])/2)+'g':'—'}</td>`;
+    t.appendChild(tr);
+  });
+}
+
+/* ══ TABLE UI ══ */
+function buildTable(){
+  const thead=document.getElementById('thead'),tbody=document.getElementById('tbody');
+  thead.innerHTML='';tbody.innerHTML='';
+  const hr=document.createElement('tr');
+  const th0=document.createElement('th');th0.className='cat';th0.textContent='';hr.appendChild(th0);
+  days.forEach(d=>{
+    const th=document.createElement('th');
+    th.innerHTML=d.label+'<br><span style="font-weight:400;font-size:10px;color:var(--text3)">'+d.date+'</span>';
+    hr.appendChild(th);
+  });
+  hr.appendChild(document.createElement('th'));
+  thead.appendChild(hr);
+  cats.forEach(cat=>{
+    const ci=cats.indexOf(cat),tr=document.createElement('tr');
+    const td0=document.createElement('td');td0.className='cat-label';
+    td0.innerHTML='<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:'+colors[ci]+';margin-right:5px;vertical-align:middle;"></span>'+cat;
+    tr.appendChild(td0);
+    days.forEach((d,i)=>{
+      const td=document.createElement('td'),inp=document.createElement('input');
+      inp.type='number';inp.min='0';inp.max='9999';inp.inputMode='numeric';
+      inp.value=vals[cat][i]!==undefined&&vals[cat][i]!==''?vals[cat][i]:'';
+      inp.dataset.cat=cat;inp.dataset.idx=i;
+      inp.addEventListener('change',e=>{
+        const c=e.target.dataset.cat,idx=parseInt(e.target.dataset.idx);
+        vals[c][idx]=parseInt(e.target.value)||0;
+        updateCharts();updateMetrics();schedSave(idx);
+      });
+      td.appendChild(inp);tr.appendChild(td);
+    });
+    tr.appendChild(document.createElement('td'));
+    tbody.appendChild(tr);
+  });
+  const delRow=document.createElement('tr');
+  delRow.appendChild(document.createElement('td'));
+  days.forEach((d,i)=>{
+    const td=document.createElement('td');
+    if(i===days.length-1){const btn=document.createElement('button');btn.className='del-btn';btn.textContent='✕';btn.onclick=removeDay;td.appendChild(btn);}
+    delRow.appendChild(td);
+  });
+  delRow.appendChild(document.createElement('td'));
+  tbody.appendChild(delRow);
+}
+
+/* ══ CHARTS ══ */
+let showNorm=true;
+function toggleNorm(){
+  showNorm=!showNorm;
+  document.getElementById('btn-norm').className='btn'+(showNorm?' active':'');
+  document.getElementById('leg-norm').style.opacity=showNorm?'1':'0.3';
+  updateCharts();
+}
+const isDark=window.matchMedia('(prefers-color-scheme:dark)').matches;
+const gc=isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.06)',tc=isDark?'#666':'#888780';
+function xlabels(){return days.map(d=>d.label+'\n'+d.date);}
+function normDs(){
+  if(!showNorm)return[];
+  const mn=[],mx=[];
+  days.forEach(d=>{const n=getNorm(dayNum(d.label));mn.push(n?n[0]:null);mx.push(n?n[1]:null);});
+  return[
+    {label:'_nmin',data:mn,borderColor:'transparent',pointRadius:0,fill:false,tension:0.3,spanGaps:true,order:10},
+    {label:'_nmax',data:mx,borderColor:'rgba(34,197,94,0.45)',backgroundColor:'rgba(34,197,94,0.11)',pointRadius:0,fill:'-1',tension:0.3,spanGaps:true,borderWidth:1.5,borderDash:[4,3],order:10},
+  ];
+}
+function catDs(){return cats.map((cat,i)=>({label:cat,data:vals[cat].slice(0,days.length).map(v=>v||null),borderColor:colors[i],backgroundColor:colors[i]+'18',borderWidth:2,pointRadius:4,pointHoverRadius:6,fill:false,tension:0.3,borderDash:dashes[i],spanGaps:true,order:i}));}
+function gainDs(){return cats.map((cat,i)=>({label:cat,data:vals[cat].slice(0,days.length).map((v,j)=>j===0||!v||!vals[cat][j-1]?null:v-vals[cat][j-1]),backgroundColor:colors[i]+'bb',borderColor:colors[i],borderWidth:1}));}
+let wChart,gChart;
+function initCharts(){
+  if(wChart)wChart.destroy();if(gChart)gChart.destroy();
+  const sh={responsive:true,maintainAspectRatio:false};
+  wChart=new Chart(document.getElementById('chartW'),{type:'line',data:{labels:xlabels(),datasets:[...normDs(),...catDs()]},options:{...sh,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.dataset.label.startsWith('_')?null:' '+c.dataset.label+' : '+c.parsed.y+'g'}}},scales:{x:{grid:{color:gc},ticks:{color:tc,font:{size:10},autoSkip:false,maxRotation:45}},y:{min:250,grid:{color:gc},ticks:{color:tc,font:{size:11},callback:v=>v+'g'},title:{display:true,text:'Poids (g)',color:tc,font:{size:11}}}}}});
+  gChart=new Chart(document.getElementById('chartG'),{type:'bar',data:{labels:xlabels(),datasets:gainDs()},options:{...sh,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.dataset.label+' : '+(c.parsed.y>0?'+':'')+c.parsed.y+'g'}}},scales:{x:{grid:{color:gc},ticks:{color:tc,font:{size:10},autoSkip:false,maxRotation:45}},y:{grid:{color:gc},ticks:{color:tc,font:{size:11},callback:v=>(v>0?'+':'')+v+'g'},title:{display:true,text:'Gain/j (g)',color:tc,font:{size:11}}}}}});
+}
+function updateCharts(){if(!wChart||!gChart)return;wChart.data.labels=xlabels();wChart.data.datasets=[...normDs(),...catDs()];wChart.update();gChart.data.labels=xlabels();gChart.data.datasets=gainDs();gChart.update();}
+function updateMetrics(){
+  const n=days.length;let maxV=0,maxN='',totG=0,bestG=0,bestN='',dg=[];
+  cats.forEach(cat=>{const arr=vals[cat].slice(0,n).filter(v=>v&&v!=='');if(!arr.length)return;const g=arr[arr.length-1]-arr[0];totG+=g;if(arr[arr.length-1]>maxV){maxV=arr[arr.length-1];maxN=cat;}if(g>bestG){bestG=g;bestN=cat;}for(let i=1;i<arr.length;i++)if(arr[i]&&arr[i-1])dg.push(arr[i]-arr[i-1]);});
+  const ad=dg.length?Math.round(dg.reduce((a,b)=>a+b,0)/dg.length):0;
+  document.getElementById('m-max').innerHTML=maxV+'g <span>'+maxN+'</span>';
+  document.getElementById('m-gain').innerHTML='+'+Math.round(totG/cats.length)+'g <span>en '+(n-1)+'j</span>';
+  document.getElementById('m-best').innerHTML='+'+bestG+'g <span>'+bestN+'</span>';
+  document.getElementById('m-daily').innerHTML=(ad>0?'+':'')+ad+'g <span>/j</span>';
+}
+function updateAll(){updateCharts();updateMetrics();buildNormTable();}
+
+/* ══ SERVICE WORKER ══ */
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+</script>
+</body>
+</html>
