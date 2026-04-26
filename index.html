@@ -275,6 +275,7 @@ async function loadData(){
     vals['Rose C'].push(r.rose_c ?? '');
     vals['Rose F'].push(r.rose_f ?? '');
   });
+  lastSyncSig = dataSignature(data);
   setStatus('ok', '✓ synchronisé');
   buildTable(); initCharts(); updateMetrics(); buildNormTable();
 }
@@ -581,11 +582,19 @@ function updateAll(){ updateCharts(); updateMetrics(); buildNormTable(); }
 ══════════════════════════════ */
 let syncInterval = null;
 
+function dataSignature(data){
+  return data.map(r => r.jour+'|'+(r.neko??'')+'|'+(r.bleu??'')+'|'+(r.rose_c??'')+'|'+(r.rose_f??'')).join(';');
+}
+let lastSyncSig = '';
+
 function startAutoSync(){
   if(syncInterval) clearInterval(syncInterval);
   syncInterval = setInterval(async () => {
     const { data, error } = await sb.from('mesures').select('*').order('jour');
     if(error) return;
+    const sig = dataSignature(data);
+    if(sig === lastSyncSig) return;
+    lastSyncSig = sig;
     days = data.map(r => ({label: r.jour, date: r.date_label}));
     cats.forEach(cat => vals[cat] = []);
     data.forEach(r => {
