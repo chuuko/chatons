@@ -153,6 +153,9 @@
     <input type="password" id="password" placeholder="Mot de passe" autocomplete="current-password">
     <button class="login-btn" id="login-btn" onclick="doLogin()">Se connecter</button>
     <p id="login-err"></p>
+    <button id="install-btn" onclick="installPWA()" style="display:none;margin-top:1rem;width:100%;background:transparent;border:1px solid rgba(255,255,255,0.2);border-radius:var(--r);color:rgba(255,255,255,0.6);padding:9px;font-size:13px;cursor:pointer;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;transition:all .2s;">
+      ⬇ Installer l'application
+    </button>
   </div>
 </div>
 
@@ -613,6 +616,23 @@ function startAutoSync(){
    SERVICE WORKER (PWA)
 ══════════════════════════════ */
 if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  document.getElementById('install-btn').style.display = 'block';
+});
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  document.getElementById('install-btn').style.display = 'none';
+});
+async function installPWA(){
+  if(!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  const { outcome } = await deferredInstallPrompt.userChoice;
+  if(outcome === 'accepted') deferredInstallPrompt = null;
+}
 </script>
 </body>
 </html>
