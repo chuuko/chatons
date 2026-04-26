@@ -137,8 +137,8 @@
      ⚙️  CONFIG — remplace ces 2 valeurs
      ═══════════════════════════════════════ -->
 <script>
-  const SUPABASE_URL  = 'https://garxefsldtkxzxxpfckc.supabase.co';
-  const SUPABASE_ANON = 'sb_publishable_9QFvX-KBAh9_CZZ6jIdhHA_8vf5M3ZY';
+  const SUPABASE_URL  = 'COLLE_TON_PROJECT_URL_ICI';
+  const SUPABASE_ANON = 'COLLE_TON_ANON_KEY_ICI';
 </script>
 <!-- ═══════════════════════════════════════ -->
 
@@ -234,6 +234,7 @@ async function doLogin(){
 }
 
 async function doLogout(){
+  if(syncInterval){ clearInterval(syncInterval); syncInterval = null; }
   await sb.auth.signOut();
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
@@ -242,7 +243,7 @@ async function doLogout(){
 function showApp(){
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
-  loadData();
+  loadData().then(() => startAutoSync());
 }
 
 // Raccourcis clavier sur le formulaire login
@@ -574,6 +575,29 @@ function updateMetrics(){
 }
 
 function updateAll(){ updateCharts(); updateMetrics(); buildNormTable(); }
+
+/* ══════════════════════════════
+   AUTO-SYNC toutes les 10s
+══════════════════════════════ */
+let syncInterval = null;
+
+function startAutoSync(){
+  if(syncInterval) clearInterval(syncInterval);
+  syncInterval = setInterval(async () => {
+    const { data, error } = await sb.from('mesures').select('*').order('jour');
+    if(error) return;
+    days = data.map(r => ({label: r.jour, date: r.date_label}));
+    cats.forEach(cat => vals[cat] = []);
+    data.forEach(r => {
+      vals['Neko'].push(r.neko   ?? '');
+      vals['Bleu'].push(r.bleu   ?? '');
+      vals['Rose C'].push(r.rose_c ?? '');
+      vals['Rose F'].push(r.rose_f ?? '');
+    });
+    buildTable(); updateAll();
+    setStatus('ok', '✓ synchronisé');
+  }, 10000);
+}
 
 /* ══════════════════════════════
    SERVICE WORKER (PWA)
