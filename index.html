@@ -93,10 +93,10 @@
   /* Table */
   .tbl-wrap{overflow-x:auto;margin-bottom:.75rem;-webkit-overflow-scrolling:touch;}
   table.data{border-collapse:collapse;font-size:13px;width:100%;}
-  table.data th{background:var(--bg2);color:var(--text2);font-weight:500;padding:5px 8px;text-align:center;border:.5px solid var(--border);white-space:nowrap;}
-  table.data th.cat{text-align:left;}
+  table.data th{background:var(--bg2);color:var(--text2);font-weight:500;padding:5px 8px;text-align:center;border:.5px solid var(--border);white-space:nowrap;position:sticky;top:0;z-index:2;}
+  table.data th.cat{text-align:left;position:sticky;top:0;left:0;z-index:3;background:var(--bg2);}
   table.data td{border:.5px solid var(--border);padding:0;text-align:center;}
-  table.data td.cat-label{padding:5px 8px;font-weight:500;text-align:left;white-space:nowrap;}
+  table.data td.cat-label{padding:5px 8px;font-weight:500;text-align:left;white-space:nowrap;position:sticky;left:0;z-index:1;background:var(--bg);}
   table.data td input{width:54px;border:none;background:transparent;color:var(--text);font-size:13px;text-align:center;padding:5px 3px;outline:none;font-family:inherit;}
   table.data td input:focus{background:var(--focus-bg);color:var(--focus-color);}
 
