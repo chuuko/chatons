@@ -368,7 +368,10 @@ async function addDay(){
 
 async function removeDay(){
   if(days.length <= 2) return;
-  const last = days[days.length-1];
+  const last    = days[days.length-1];
+  const lastIdx = days.length - 1;
+  const hasDat  = CAT_KEYS.some(k => vals[k][lastIdx] !== '' && vals[k][lastIdx] != null);
+  if(hasDat && !confirm('Supprimer ' + last.label + ' (' + last.date + ') ?\nLes valeurs saisies seront perdues.')) return;
   setStatus('saving', '🗑 suppression…');
   const { error } = await sb.from('mesures').delete().eq('jour', last.label);
   if(error){ setStatus('err', '✗ erreur'); } else { setStatus('ok', '✓ synchronisé'); }
