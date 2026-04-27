@@ -130,6 +130,16 @@
   table.norms tr.future td{color:var(--text3);}
   .badge{display:inline-block;font-size:10px;background:var(--gnbg);color:#16a34a;border:1px solid var(--gnbd);border-radius:4px;padding:1px 5px;margin-left:5px;vertical-align:middle;}
   .note{font-size:11px;color:var(--text3);margin-top:6px;}
+  /* Config modal */
+  #cfg-modal{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:50;align-items:center;justify-content:center;}
+  .cfg-box{background:var(--bg);border:1px solid var(--border);border-radius:var(--rl);padding:1.5rem;width:90%;max-width:300px;box-shadow:0 8px 32px rgba(0,0,0,0.2);}
+  .cfg-box h3{font-size:14px;font-weight:500;margin-bottom:1rem;color:var(--text);}
+  .cfg-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+  .cfg-row input[type=color]{width:34px;height:34px;border:1px solid var(--border);border-radius:var(--r);padding:2px;background:none;cursor:pointer;flex-shrink:0;}
+  .cfg-row input[type=text]{flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);color:var(--text);padding:7px 10px;font-size:14px;font-family:inherit;outline:none;}
+  .cfg-row input[type=text]:focus{border-color:var(--focus-color);}
+  .cfg-actions{display:flex;gap:8px;margin-top:1rem;}
+  .cfg-ok{background:#e05080 !important;border-color:#e05080 !important;color:#fff !important;}
   @media(max-width:600px){
     #app{padding-top:4rem;}
     /* font-size ≥ 16px empêche le zoom auto iOS sur focus */
@@ -191,13 +201,22 @@
     <button class="btn" onclick="addDay()">+ Ajouter un jour</button>
     <button class="btn active" id="btn-norm" onclick="toggleNorm()">◎ Norme vétérinaire</button>
     <button class="btn" onclick="exportCSV()">⬇ CSV</button>
+    <button class="btn" onclick="openCfg()">⚙ Chatons</button>
   </div>
 
-  <div class="legend">
-    <span><span class="ll" style="border-top:2px dotted #bebebe;height:0;"></span>Neko</span>
-    <span><span class="ll" style="border-top:2px dotted #447fba;height:0;"></span>Bleu</span>
-    <span><span class="ll" style="background:#F4A7C3;"></span>Rose C</span>
-    <span><span class="ll" style="background:#bb007c;"></span>Rose F</span>
+  <!-- Modal config chatons -->
+  <div id="cfg-modal" style="display:none" onclick="if(event.target===this)closeCfg()">
+    <div class="cfg-box">
+      <h3>Noms &amp; couleurs</h3>
+      <div id="cfg-rows"></div>
+      <div class="cfg-actions">
+        <button class="btn cfg-ok" onclick="applyCfg()">Appliquer</button>
+        <button class="btn" onclick="closeCfg()">Annuler</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend" id="legend">
     <span id="leg-norm" style="transition:opacity .2s"><span style="display:inline-block;width:22px;height:10px;background:rgba(34,197,94,0.2);border:1.5px dashed rgba(34,197,94,0.55);border-radius:2px;"></span> Norme vétérinaire</span>
   </div>
 
@@ -266,9 +285,19 @@ sb.auth.getSession().then(({data:{session}}) => { if(session) showApp(); });
 /* ══════════════════════════════
    DONNÉES
 ══════════════════════════════ */
-const cats   = ['Neko','Bleu','Rose C','Rose F'];
-const colors = ['#bebebe','#447fba','#F4A7C3','#bb007c'];
-const dashes = [[6,3],[6,3],[],[]];
+const CAT_KEYS = ['Neko','Bleu','Rose C','Rose F'];
+const dashes   = [[6,3],[6,3],[],[]];
+
+let catNames = [...CAT_KEYS];
+let colors   = ['#bebebe','#447fba','#F4A7C3','#bb007c'];
+
+(function loadCatConfig(){
+  try {
+    const cfg = JSON.parse(localStorage.getItem('chatons-cfg') || '{}');
+    if(cfg.names  && cfg.names.length  === CAT_KEYS.length) catNames = cfg.names;
+    if(cfg.colors && cfg.colors.length === CAT_KEYS.length) colors   = cfg.colors;
+  } catch(e){}
+})();
 
 let days = [];
 let vals = {'Neko':[],'Bleu':[],'Rose C':[],'Rose F':[]};
@@ -278,7 +307,7 @@ async function loadData(){
   const { data, error } = await sb.from('mesures').select('*').order('jour');
   if(error){ setStatus('err', '✗ erreur connexion'); console.error(error); return; }
   days = data.map(r => ({label: r.jour, date: r.date_label}));
-  cats.forEach(cat => vals[cat] = []);
+  CAT_KEYS.forEach(k => vals[k] = []);
   data.forEach(r => {
     vals['Neko'].push(r.neko   ?? '');
     vals['Bleu'].push(r.bleu   ?? '');
@@ -287,7 +316,7 @@ async function loadData(){
   });
   lastSyncSig = dataSignature(data);
   setStatus('ok', '✓ synchronisé');
-  buildTable(); initCharts(); updateMetrics(); buildNormTable();
+  buildTable(); buildLegend(); initCharts(); updateMetrics(); buildNormTable();
 }
 
 // Sauvegarde debounced — évite un appel à chaque frappe
@@ -323,7 +352,7 @@ async function addDay(){
     date:  (nd<10?'0'+nd:nd)+'/'+(nm<10?'0'+nm:nm)
   };
   days.push(newDay);
-  cats.forEach(cat => { if(vals[cat].length < days.length) vals[cat].push(''); });
+  CAT_KEYS.forEach(k => { if(vals[k].length < days.length) vals[k].push(''); });
   setStatus('saving', '💾 sauvegarde…');
   const { error } = await sb.from('mesures').upsert(
     { jour: newDay.label, date_label: newDay.date },
@@ -333,7 +362,7 @@ async function addDay(){
   buildTable(); updateAll();
   setTimeout(() => {
     const inp = document.querySelectorAll('input[type=number]');
-    if(inp.length) inp[inp.length - cats.length].focus();
+    if(inp.length) inp[inp.length - CAT_KEYS.length].focus();
   }, 50);
 }
 
@@ -344,13 +373,13 @@ async function removeDay(){
   const { error } = await sb.from('mesures').delete().eq('jour', last.label);
   if(error){ setStatus('err', '✗ erreur'); } else { setStatus('ok', '✓ synchronisé'); }
   days.pop();
-  cats.forEach(cat => vals[cat].pop());
+  CAT_KEYS.forEach(k => vals[k].pop());
   buildTable(); updateAll();
 }
 
 function exportCSV(){
   let csv = 'Chaton,' + days.map(d => d.label+' '+d.date).join(',') + '\n';
-  cats.forEach(cat => { csv += cat+','+vals[cat].slice(0,days.length).join(',')+'\n'; });
+  CAT_KEYS.forEach((k,i) => { csv += catNames[i]+','+vals[k].slice(0,days.length).join(',')+'\n'; });
   const a = document.createElement('a');
   a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
   a.download = 'suivi_chatons.csv'; a.click();
@@ -431,18 +460,17 @@ function buildTable(){
   hr.appendChild(document.createElement('th'));
   thead.appendChild(hr);
 
-  cats.forEach(cat => {
-    const ci = cats.indexOf(cat);
+  CAT_KEYS.forEach((key, ci) => {
     const tr = document.createElement('tr');
     const td0 = document.createElement('td'); td0.className='cat-label';
-    td0.innerHTML = '<span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:'+colors[ci]+';margin-right:6px;vertical-align:middle;"></span>'+cat;
+    td0.innerHTML = '<span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:'+colors[ci]+';margin-right:6px;vertical-align:middle;"></span>'+catNames[ci];
     tr.appendChild(td0);
     days.forEach((d,i) => {
       const td  = document.createElement('td');
       const inp = document.createElement('input');
       inp.type='number'; inp.min='0'; inp.max='9999'; inp.inputMode='numeric';
-      inp.value = (vals[cat][i] !== undefined && vals[cat][i] !== '') ? vals[cat][i] : '';
-      inp.dataset.cat = cat; inp.dataset.idx = i;
+      inp.value = (vals[key][i] !== undefined && vals[key][i] !== '') ? vals[key][i] : '';
+      inp.dataset.cat = key; inp.dataset.idx = i;
       inp.addEventListener('change', e => {
         const c   = e.target.dataset.cat;
         const idx = parseInt(e.target.dataset.idx);
@@ -504,9 +532,9 @@ function normDs(){
 }
 
 function catDs(){
-  return cats.map((cat,i) => ({
-    label: cat,
-    data:  vals[cat].slice(0,days.length).map(v => v||null),
+  return CAT_KEYS.map((key,i) => ({
+    label: catNames[i],
+    data:  vals[key].slice(0,days.length).map(v => v||null),
     borderColor: colors[i], backgroundColor: colors[i]+'18',
     borderWidth:2, pointRadius:4, pointHoverRadius:6,
     fill:false, tension:0.3, borderDash:dashes[i], spanGaps:true, order:i,
@@ -514,10 +542,10 @@ function catDs(){
 }
 
 function gainDs(){
-  return cats.map((cat,i) => ({
-    label: cat,
-    data:  vals[cat].slice(0,days.length).map((v,j) =>
-      j===0||!v||!vals[cat][j-1] ? null : v-vals[cat][j-1]
+  return CAT_KEYS.map((key,i) => ({
+    label: catNames[i],
+    data:  vals[key].slice(0,days.length).map((v,j) =>
+      j===0||!v||!vals[key][j-1] ? null : v-vals[key][j-1]
     ),
     backgroundColor: colors[i]+'bb', borderColor:colors[i], borderWidth:1,
   }));
@@ -569,18 +597,18 @@ function updateCharts(){
 function updateMetrics(){
   const n=days.length;
   let maxV=0,maxN='',totG=0,bestG=0,bestN='',dg=[];
-  cats.forEach(cat => {
-    const arr = vals[cat].slice(0,n).filter(v=>v&&v!=='');
+  CAT_KEYS.forEach((key,i) => {
+    const arr = vals[key].slice(0,n).filter(v=>v&&v!=='');
     if(!arr.length) return;
     const g = arr[arr.length-1]-arr[0];
     totG += g;
-    if(arr[arr.length-1]>maxV){ maxV=arr[arr.length-1]; maxN=cat; }
-    if(g>bestG){ bestG=g; bestN=cat; }
-    for(let i=1;i<arr.length;i++) if(arr[i]&&arr[i-1]) dg.push(arr[i]-arr[i-1]);
+    if(arr[arr.length-1]>maxV){ maxV=arr[arr.length-1]; maxN=catNames[i]; }
+    if(g>bestG){ bestG=g; bestN=catNames[i]; }
+    for(let j=1;j<arr.length;j++) if(arr[j]&&arr[j-1]) dg.push(arr[j]-arr[j-1]);
   });
   const ad = dg.length ? Math.round(dg.reduce((a,b)=>a+b,0)/dg.length) : 0;
   document.getElementById('m-max').innerHTML   = maxV+'g <span>'+maxN+'</span>';
-  document.getElementById('m-gain').innerHTML  = '+'+Math.round(totG/cats.length)+'g <span>en '+(n-1)+'j</span>';
+  document.getElementById('m-gain').innerHTML  = '+'+Math.round(totG/CAT_KEYS.length)+'g <span>en '+(n-1)+'j</span>';
   document.getElementById('m-best').innerHTML  = '+'+bestG+'g <span>'+bestN+'</span>';
   document.getElementById('m-daily').innerHTML = (ad>0?'+':'')+ad+'g <span>/chaton/j</span>';
 }
@@ -609,7 +637,7 @@ function startAutoSync(){
     if(isEditing || saveTimer !== null) return;
     lastSyncSig = sig;
     days = data.map(r => ({label: r.jour, date: r.date_label}));
-    cats.forEach(cat => vals[cat] = []);
+    CAT_KEYS.forEach(k => vals[k] = []);
     data.forEach(r => {
       vals['Neko'].push(r.neko   ?? '');
       vals['Bleu'].push(r.bleu   ?? '');
@@ -619,6 +647,50 @@ function startAutoSync(){
     buildTable(); updateAll();
     setStatus('ok', '✓ synchronisé');
   }, 10000);
+}
+
+/* ══════════════════════════════
+   CONFIG CHATONS
+══════════════════════════════ */
+function buildLegend(){
+  const legNorm = document.getElementById('leg-norm');
+  document.querySelectorAll('.leg-cat').forEach(el => el.remove());
+  CAT_KEYS.forEach((key, i) => {
+    const span = document.createElement('span');
+    span.className = 'leg-cat';
+    const ll = document.createElement('span');
+    ll.className = 'll';
+    if(dashes[i].length){ ll.style.cssText = 'border-top:2px dotted '+colors[i]+';height:0;background:none;'; }
+    else                 { ll.style.background = colors[i]; }
+    span.appendChild(ll);
+    span.appendChild(document.createTextNode(' '+catNames[i]));
+    legNorm.parentNode.insertBefore(span, legNorm);
+  });
+}
+
+function openCfg(){
+  const rows = document.getElementById('cfg-rows');
+  rows.innerHTML = '';
+  CAT_KEYS.forEach((key, i) => {
+    const div = document.createElement('div');
+    div.className = 'cfg-row';
+    div.innerHTML = '<input type="color" value="'+colors[i]+'" data-i="'+i+'">'
+      + '<input type="text" value="'+catNames[i]+'" data-i="'+i+'" placeholder="'+key+'">';
+    rows.appendChild(div);
+  });
+  document.getElementById('cfg-modal').style.display = 'flex';
+}
+
+function closeCfg(){
+  document.getElementById('cfg-modal').style.display = 'none';
+}
+
+function applyCfg(){
+  document.querySelectorAll('#cfg-rows input[type=color]').forEach((el,i) => { colors[i] = el.value; });
+  document.querySelectorAll('#cfg-rows input[type=text]').forEach((el,i)  => { catNames[i] = el.value.trim() || CAT_KEYS[i]; });
+  localStorage.setItem('chatons-cfg', JSON.stringify({names:catNames, colors}));
+  closeCfg();
+  buildTable(); buildLegend(); updateCharts(); updateMetrics();
 }
 
 /* ══════════════════════════════
