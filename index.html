@@ -130,6 +130,12 @@
   table.norms tr.future td{color:var(--text3);}
   .badge{display:inline-block;font-size:10px;background:var(--gnbg);color:#16a34a;border:1px solid var(--gnbd);border-radius:4px;padding:1px 5px;margin-left:5px;vertical-align:middle;}
   .note{font-size:11px;color:var(--text3);margin-top:6px;}
+  @media(max-width:600px){
+    #app{padding-top:1.25rem;}
+    /* font-size ≥ 16px empêche le zoom auto iOS sur focus */
+    table.data td input{font-size:16px;}
+    .login-box input{font-size:16px;}
+  }
 </style>
 </head>
 <body>
